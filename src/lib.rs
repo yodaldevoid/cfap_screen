@@ -23,6 +23,102 @@ pub fn width_pixels_to_bytes(x: u16) -> u8 {
     ((x + 7) >> 3) as u8
 }
 
+pub enum Preset {
+    CFAP200200A0_154,
+    CFAP200200A1_154,
+}
+
+pub struct ScreenBuilder {
+    // TODO: const generics
+    pub x_size: u16,
+    pub y_size: u16,
+
+    pub soft_start: [u8; 3],
+    pub vcom: u8,
+    pub dummy_line: u8,
+    pub gate_line: u8,
+    pub entry_mode: EntryMode,
+
+    pub lut_full: [u8; 30],
+    pub lut_part: [u8; 30],
+}
+
+impl ScreenBuilder {
+    pub fn preset(preset: Preset) -> ScreenBuilder {
+        match preset {
+            Preset::CFAP200200A0_154 => ScreenBuilder {
+                x_size: 200,
+                y_size: 200,
+
+                soft_start: SOFT_START_CFAP200200A0_154,
+                vcom: VCOM_CFAP200200A0_154,
+                dummy_line: DUMMY_LINE_CFAP200200A0_154,
+                gate_line: GATE_LINE_CFAP200200A0_154,
+                entry_mode: EntryMode::XIncrementYDecrement,
+
+                lut_full: LUT_FULL_CFAP200200A0_154,
+                lut_part: LUT_PART_CFAP200200A0_154,
+            },
+            Preset::CFAP200200A1_154 => ScreenBuilder {
+                x_size: 200,
+                y_size: 200,
+
+                soft_start: SOFT_START_CFAP200200A1_154,
+                vcom: VCOM_CFAP200200A1_154,
+                dummy_line: DUMMY_LINE_CFAP200200A1_154,
+                gate_line: GATE_LINE_CFAP200200A1_154,
+                entry_mode: EntryMode::XIncrementYDecrement,
+
+                lut_full: LUT_FULL_CFAP200200A1_154,
+                lut_part: LUT_PART_CFAP200200A1_154,
+            },
+        }
+    }
+
+    pub fn new_screen<SPI, DC, CS, BUSY, RST, ERR, DELAY>(
+        self,
+        serial: SPI,
+        dc: DC,
+        cs: CS,
+        busy: BUSY,
+        reset: RST,
+        delay: &mut DELAY,
+    ) -> Result<Screen<SPI, DC, CS, BUSY, RST, ERR>, ERR>
+    where
+        SPI: FullDuplex<u8, Error = ERR>,
+        DC: OutputPin,
+        CS: OutputPin,
+        BUSY: InputPin,
+        RST: OutputPin,
+        DELAY: DelayMs<u16>,
+    {
+        Screen::new(
+            serial,
+            dc,
+            cs,
+            busy,
+            reset,
+            self.x_size,
+            self.y_size,
+            self.soft_start,
+            self.vcom,
+            self.dummy_line,
+            self.gate_line,
+            self.entry_mode,
+            self.lut_full,
+            self.lut_part,
+            delay,
+        )
+    }
+}
+
+pub enum EntryMode {
+    XDecrementYDecrement = 0b00,
+    XIncrementYDecrement = 0b01,
+    XDecrementYIncrement = 0b10,
+    XIncrementYIncrement = 0b11,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum Command {
     /// Data: A[7:0], {[0; 7], A[8]}, {[0;5], B[2:0]}
@@ -258,6 +354,150 @@ pub enum Command {
     Nop = 0xff,
 }
 
+pub const SOFT_START_CFAP200200A0_154: [u8; 3] = [0xd7, 0xd6, 0x9d];
+pub const SOFT_START_CFAP200200A1_154: [u8; 3] = [0xd7, 0xd6, 0x9d];
+
+pub const VCOM_CFAP200200A0_154: u8 = 0xA8;
+pub const VCOM_CFAP200200A1_154: u8 = 0x7F;
+
+pub const DUMMY_LINE_CFAP200200A0_154: u8 = 0x1A;
+pub const DUMMY_LINE_CFAP200200A1_154: u8 = 0x1A;
+
+pub const GATE_LINE_CFAP200200A0_154: u8 = 0x08;
+pub const GATE_LINE_CFAP200200A1_154: u8 = 0x08;
+
+pub const LUT_FULL_CFAP200200A0_154: [u8; 30] = [
+    0x02,
+    0x02,
+    0x01,
+    0x11,
+    0x12,
+    0x12,
+    0x22,
+    0x22,
+    0x66,
+    0x69,
+    0x69,
+    0x59,
+    0x58,
+    0x99,
+    0x99,
+    0x88,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0xF8,
+    0xB4,
+    0x13,
+    0x51,
+    0x35,
+    0x51,
+    0x51,
+    0x19,
+    0x01,
+    0x00,
+];
+
+pub const LUT_FULL_CFAP200200A1_154: [u8; 30] = [
+    0x66,
+    0x66,
+    0x44,
+    0x66,
+    0xAA,
+    0x11,
+    0x80,
+    0x08,
+    0x11,
+    0x18,
+    0x81,
+    0x18,
+    0x11,
+    0x88,
+    0x11,
+    0x88,
+    0x11,
+    0x88,
+    0x00,
+    0x00,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0x5F,
+    0xAF,
+    0xFF,
+    0xFF,
+    0x2F,
+    0x00,
+];
+
+pub const LUT_PART_CFAP200200A0_154: [u8; 30] = [
+    0x10,
+    0x18,
+    0x18,
+    0x08,
+    0x18,
+    0x18,
+    0x08,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x13,
+    0x14,
+    0x44,
+    0x12,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+];
+
+pub const LUT_PART_CFAP200200A1_154: [u8; 30] = [
+    0x10,
+    0x18,
+    0x18,
+    0x28,
+    0x18,
+    0x18,
+    0x18,
+    0x18,
+    0x08,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x13,
+    0x11,
+    0x22,
+    0x63,
+    0x11,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+];
+
 pub struct Screen<SPI, DC, CS, BUSY, RST, ERR>
 where
     SPI: FullDuplex<u8, Error = ERR>,
@@ -276,6 +516,8 @@ where
     // TODO: const generics
     x_size: u16,
     y_size: u16,
+    lut_full: [u8; 30],
+    lut_part: [u8; 30],
 }
 
 impl<SPI, DC, CS, BUSY, RST, ERR> Screen<SPI, DC, CS, BUSY, RST, ERR>
@@ -286,20 +528,27 @@ where
     BUSY: InputPin,
     RST: OutputPin,
 {
-    pub fn new<DELAY>(
-        x_size: u16,
-        y_size: u16,
+    fn new<DELAY>(
         serial: SPI,
         dc: DC,
         cs: CS,
         busy: BUSY,
         reset: RST,
+        x_size: u16,
+        y_size: u16,
+        soft_start: [u8; 3],
+        vcom: u8,
+        dummy_line: u8,
+        gate_line: u8,
+        entry_mode: EntryMode,
+        lut_full: [u8; 30],
+        lut_part: [u8; 30],
         delay: &mut DELAY,
     ) -> Result<Screen<SPI, DC, CS, BUSY, RST, ERR>, ERR>
     where
         DELAY: DelayMs<u16>,
     {
-        let mut screen = Screen { x_size, y_size, serial, dc, cs, busy, reset };
+        let mut screen = Screen { serial, dc, cs, busy, reset, x_size, y_size, lut_full, lut_part };
 
         screen.reset.set_low();
         screen.cs.set_high();
@@ -317,27 +566,27 @@ where
         )?;
         screen.write_cmd_string(
             Command::BoosterSoftStartControl,
-            &[0xd7, 0xd6, 0x9d]
+            &soft_start
         )?;
         // VCOM setting
         screen.write_cmd_string(
             Command::WriteVcomRegister,
-            &[0xa8] // VCOM 7c
+            &[vcom]
         )?;
         //dummy line per gate
         screen.write_cmd_string(
             Command::SetDummyLinePeriod,
-            &[0x1a] // 4 dummy lines per gate
+            &[dummy_line] // 4 dummy lines per gate
         )?;
         // Gate time setting
         screen.write_cmd_string(
             Command::SetGateLineWidth,
-            &[0x08] // 2 us per line
+            &[gate_line] // 2 us per line
         )?;
-        // X decrease, Y decrease
+        // X increase, Y decrease
         screen.write_cmd_string(
             Command::DataEntryModeSetting,
-            &[0x01]
+            &[entry_mode as u8]
         )?;
 
         Ok(screen)
@@ -387,127 +636,15 @@ where
     }
 
     pub fn load_full_update_lut(&mut self) -> Result<(), ERR> {
-        let lut_full_update = [
-            0x02, //C221 25C Full update waveform
-            0x02,
-            0x01,
-            0x11,
-            0x12,
-            0x12,
-            0x22,
-            0x22,
-            0x66,
-            0x69,
-            0x69,
-            0x59,
-            0x58,
-            0x99,
-            0x99,
-            0x88,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0xF8,
-            0xB4,
-            0x13,
-            0x51,
-            0x35,
-            0x51,
-            0x51,
-            0x19,
-            0x01,
-            0x00,
-        ];
+        let lut_full_update = self.lut_full;
 
         self.write_cmd_string(Command::WriteLutRegister, &lut_full_update)
     }
 
     pub fn load_partial_update_lut(&mut self) -> Result<(), ERR> {
-        let lut_partial_update = [
-            0x10, //C221 25C partial update waveform
-            0x18,
-            0x18,
-            0x08,
-            0x18,
-            0x18,
-            0x08,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x13,
-            0x14,
-            0x44,
-            0x12,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-        ];
+        let lut_partial_update = self.lut_part;
 
         self.write_cmd_string(Command::WriteLutRegister, &lut_partial_update)
-    }
-
-    fn load_image(&mut self, image: &[u8]) -> Result<(), ERR> {
-        while self.busy.is_high() {}
-
-        self.cs.set_low();
-
-        self.dc.set_low();
-        block!(self.serial.send(Command::WriteRam as u8))?;
-        let _ = block!(self.serial.read())?;
-
-        self.dc.set_high();
-        for d in image {
-            block!(self.serial.send(*d))?;
-            let _ = block!(self.serial.read())?;
-        }
-
-        self.cs.set_high();
-
-        Ok(())
-    }
-
-    /// `x_start` and `x_end` are in bytes. `y_start` and `y_end` are in pixels.
-    fn set_display_area(&mut self, x_start: u8, x_end: u8, y_start: u16, y_end: u16) -> Result<(), ERR> {
-        //let x_size = width_pixels_to_bytes(self.x_size);
-        // TODO: error, out of bounds
-        //if x_start > x_size || x_end > x_size || y_start > self.y_size || y_end > self.y_size {
-        //    return error;
-        //}
-
-        // set x region
-        self.write_cmd_string(
-            Command::SetRamXAddressStartEndPosition,
-            &[x_start, x_end]
-        )?;
-        // set y region
-        self.write_cmd_string(
-            Command::SetRamYAddressStartEndPosition,
-            &[y_start as u8, (y_start >> 8) as u8, y_end as u8, (y_end >> 8) as u8]
-        )?;
-        // set x origin
-        self.write_cmd_string(
-            Command::SetRamXAddressCounter,
-            &[x_start]
-        )?;
-        // set y origin
-        self.write_cmd_string(
-            Command::SetRamYAddressCounter,
-            &[y_start as u8, (y_start >> 8) as u8]
-        )
     }
 
     pub fn power_on(&mut self) -> Result<(), ERR> {
@@ -556,7 +693,57 @@ where
         self.write_cmd(Command::Nop)
     }
 
-    fn write_cmd(&mut self, cmd: Command) -> Result<(), ERR> {
+    pub fn load_image(&mut self, image: &[u8]) -> Result<(), ERR> {
+        while self.busy.is_high() {}
+
+        self.cs.set_low();
+
+        self.dc.set_low();
+        block!(self.serial.send(Command::WriteRam as u8))?;
+        let _ = block!(self.serial.read())?;
+
+        self.dc.set_high();
+        for d in image {
+            block!(self.serial.send(*d))?;
+            let _ = block!(self.serial.read())?;
+        }
+
+        self.cs.set_high();
+
+        Ok(())
+    }
+
+    /// `x_start` and `x_end` are in bytes. `y_start` and `y_end` are in pixels.
+    pub fn set_display_area(&mut self, x_start: u8, x_end: u8, y_start: u16, y_end: u16) -> Result<(), ERR> {
+        //let x_size = width_pixels_to_bytes(self.x_size);
+        // TODO: error, out of bounds
+        //if x_start > x_size || x_end > x_size || y_start > self.y_size || y_end > self.y_size {
+        //    return error;
+        //}
+
+        // set x region
+        self.write_cmd_string(
+            Command::SetRamXAddressStartEndPosition,
+            &[x_start, x_end]
+        )?;
+        // set y region
+        self.write_cmd_string(
+            Command::SetRamYAddressStartEndPosition,
+            &[y_start as u8, (y_start >> 8) as u8, y_end as u8, (y_end >> 8) as u8]
+        )?;
+        // set x origin
+        self.write_cmd_string(
+            Command::SetRamXAddressCounter,
+            &[x_start]
+        )?;
+        // set y origin
+        self.write_cmd_string(
+            Command::SetRamYAddressCounter,
+            &[y_start as u8, (y_start >> 8) as u8]
+        )
+    }
+
+    pub fn write_cmd(&mut self, cmd: Command) -> Result<(), ERR> {
         self.cs.set_low();
 
         self.dc.set_low();
@@ -568,7 +755,7 @@ where
         Ok(())
     }
 
-    fn write_data(&mut self, data: u8) -> Result<(), ERR> {
+    pub fn write_data(&mut self, data: u8) -> Result<(), ERR> {
         self.cs.set_low();
     
         self.dc.set_high();
@@ -580,7 +767,7 @@ where
         Ok(())
     }
 
-    fn write_cmd_string(&mut self, cmd: Command, data: &[u8]) -> Result<(), ERR> {
+    pub fn write_cmd_string(&mut self, cmd: Command, data: &[u8]) -> Result<(), ERR> {
         self.cs.set_low();
 
         self.dc.set_low();
