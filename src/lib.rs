@@ -98,15 +98,7 @@ impl ScreenBuilder {
             cs,
             busy,
             reset,
-            self.x_size,
-            self.y_size,
-            self.soft_start,
-            self.vcom,
-            self.dummy_line,
-            self.gate_line,
-            self.entry_mode,
-            self.lut_full,
-            self.lut_part,
+            self,
             delay,
         )
     }
@@ -534,21 +526,23 @@ where
         cs: CS,
         busy: BUSY,
         reset: RST,
-        x_size: u16,
-        y_size: u16,
-        soft_start: [u8; 3],
-        vcom: u8,
-        dummy_line: u8,
-        gate_line: u8,
-        entry_mode: EntryMode,
-        lut_full: [u8; 30],
-        lut_part: [u8; 30],
+        builder: ScreenBuilder,
         delay: &mut DELAY,
     ) -> Result<Screen<SPI, DC, CS, BUSY, RST, ERR>, ERR>
     where
         DELAY: DelayMs<u16>,
     {
-        let mut screen = Screen { serial, dc, cs, busy, reset, x_size, y_size, lut_full, lut_part };
+        let mut screen = Screen {
+            serial,
+            dc,
+            cs,
+            busy,
+            reset,
+            x_size: builder.x_size,
+            y_size: builder.y_size,
+            lut_full: builder.lut_full,
+            lut_part: builder.lut_part
+        };
 
         screen.reset.set_low();
         screen.cs.set_high();
@@ -562,31 +556,31 @@ where
         // Panel configuration, Gate selection
         screen.write_cmd_string(
             Command::DriverOutputControl,
-            &[x_size as u8, ((x_size >> 8) & 0x01) as u8, 0x00]
+            &[builder.x_size as u8, ((builder.x_size >> 8) & 0x01) as u8, 0x00]
         )?;
         screen.write_cmd_string(
             Command::BoosterSoftStartControl,
-            &soft_start
+            &builder.soft_start
         )?;
         // VCOM setting
         screen.write_cmd_string(
             Command::WriteVcomRegister,
-            &[vcom]
+            &[builder.vcom]
         )?;
         //dummy line per gate
         screen.write_cmd_string(
             Command::SetDummyLinePeriod,
-            &[dummy_line] // 4 dummy lines per gate
+            &[builder.dummy_line]
         )?;
         // Gate time setting
         screen.write_cmd_string(
             Command::SetGateLineWidth,
-            &[gate_line] // 2 us per line
+            &[builder.gate_line]
         )?;
         // X increase, Y decrease
         screen.write_cmd_string(
             Command::DataEntryModeSetting,
-            &[entry_mode as u8]
+            &[builder.entry_mode as u8]
         )?;
 
         Ok(screen)
