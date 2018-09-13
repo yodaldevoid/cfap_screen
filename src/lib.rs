@@ -490,6 +490,31 @@ pub const LUT_PART_CFAP200200A1_154: [u8; 30] = [
     0x00,
 ];
 
+#[derive(Debug)]
+pub enum ScreenError<ERR> {
+    BoundsError,
+    LengthError,
+    SpiError(ERR)
+}
+
+impl<ERR> From<ERR> for ScreenError<ERR> {
+    fn from(err:ERR) -> Self {
+        ScreenError::SpiError(err)
+    }
+}
+
+impl<ERR> Clone for ScreenError<ERR> where ERR: Clone {
+    fn clone(&self) -> Self {
+        match self {
+            ScreenError::BoundsError => ScreenError::BoundsError,
+            ScreenError::LengthError => ScreenError::LengthError,
+            ScreenError::SpiError(err) => ScreenError::SpiError(err.clone()),
+        }
+    }
+}
+
+impl<ERR> Copy for ScreenError<ERR> where ERR: Copy {}
+
 pub struct Screen<SPI, DC, CS, BUSY, RST, ERR>
 where
     SPI: FullDuplex<u8, Error = ERR>,
@@ -586,14 +611,13 @@ where
         Ok(screen)
     }
 
-    pub fn show_full_screen_image(&mut self, image: &[u8]) -> Result<(), ERR> {
+    pub fn show_full_screen_image(&mut self, image: &[u8]) -> Result<(), ScreenError<ERR>> {
         let x_size = ((self.x_size + 7) >> 3) as u8;
         let y_size = self.y_size;
 
-        // TODO: error handling
-        //if self.x_size * self.y_size != image.len() {
-        //    return error;
-        //}
+        if self.x_size as usize * self.y_size as usize != image.len() {
+            return Err(ScreenError::LengthError);
+        }
 
         self.load_full_update_lut()?;
         self.power_on()?;
@@ -606,7 +630,9 @@ where
         self.load_image(image)?;
         self.update_full()?;
 
-        self.power_off()
+        self.power_off()?;
+
+        Ok(())
     }
 
     /// `x_start` and `x_size` are in bytes. `y_start` and `y_size` are in pixels.
@@ -616,17 +642,18 @@ where
         x_start: u8, x_size: u8,
         y_start: u16, y_size: u16,
         image: &[u8],
-    ) -> Result<(), ERR> {
-        // TODO: error handling
-        //if self.x_size * self.y_size != image.len() {
-        //    return error;
-        //}
+    ) -> Result<(), ScreenError<ERR>> {
+        if x_size as usize * y_size as usize != image.len() {
+            return Err(ScreenError::LengthError);
+        }
 
         self.set_display_area(
             x_start, x_start + x_size - 1,
             y_start, y_start - (y_size - 1),
         )?;
-        self.load_image(image)
+        self.load_image(image)?;
+
+        Ok(())
     }
 
     pub fn load_full_update_lut(&mut self) -> Result<(), ERR> {
@@ -708,12 +735,11 @@ where
     }
 
     /// `x_start` and `x_end` are in bytes. `y_start` and `y_end` are in pixels.
-    pub fn set_display_area(&mut self, x_start: u8, x_end: u8, y_start: u16, y_end: u16) -> Result<(), ERR> {
-        //let x_size = width_pixels_to_bytes(self.x_size);
-        // TODO: error, out of bounds
-        //if x_start > x_size || x_end > x_size || y_start > self.y_size || y_end > self.y_size {
-        //    return error;
-        //}
+    pub fn set_display_area(&mut self, x_start: u8, x_end: u8, y_start: u16, y_end: u16) -> Result<(), ScreenError<ERR>> {
+        let x_size = width_pixels_to_bytes(self.x_size);
+        if x_start > x_size || x_end > x_size || y_start > self.y_size || y_end > self.y_size {
+            return Err(ScreenError::BoundsError);
+        }
 
         // set x region
         self.write_cmd_string(
@@ -734,7 +760,9 @@ where
         self.write_cmd_string(
             Command::SetRamYAddressCounter,
             &[y_start as u8, (y_start >> 8) as u8]
-        )
+        )?;
+
+        Ok(())
     }
 
     pub fn write_cmd(&mut self, cmd: Command) -> Result<(), ERR> {
