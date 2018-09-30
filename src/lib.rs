@@ -649,7 +649,7 @@ where
 
         self.set_display_area(
             x_start, x_start + x_size - 1,
-            y_start, y_start - (y_size - 1),
+            y_start, y_start + (y_size - 1),
         )?;
         self.load_image(image)?;
 
