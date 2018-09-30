@@ -1,6 +1,6 @@
 [package]
 name = "cfap_screen"
-version = "2.0.0"
+version = "2.0.1"
 authors = ["Gabriel Smith <ga29smith@gmail.com>"]
 categories = ["embedded", "no-std"]
 description = "An embedded-hal based driver for ePaper displays from Crystalfontz."
