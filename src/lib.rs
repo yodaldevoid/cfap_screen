@@ -779,13 +779,13 @@ where
 
     pub fn write_data(&mut self, data: u8) -> Result<(), ERR> {
         self.cs.set_low();
-    
+
         self.dc.set_high();
         block!(self.serial.send(data))?;
         let _ = block!(self.serial.read())?;
-    
+
         self.cs.set_high();
-    
+
         Ok(())
     }
 
