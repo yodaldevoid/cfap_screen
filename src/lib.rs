@@ -615,7 +615,7 @@ where
         let x_size = ((self.x_size + 7) >> 3) as u8;
         let y_size = self.y_size;
 
-        if self.x_size as usize * self.y_size as usize != image.len() {
+        if x_size as usize * y_size as usize != image.len() {
             return Err(ScreenError::LengthError);
         }
 
