@@ -679,7 +679,11 @@ where
 
     pub fn power_off(&mut self) -> Result<(), ERR> {
         self.write_cmd_string(Command::DisplayUpdateControl2, &[0xc3])?;
-        self.write_cmd(Command::MasterActivation)
+        self.write_cmd(Command::MasterActivation)?;
+
+        while self.busy.is_high() {}
+
+        Ok(())
     }
 
     pub fn update_full(&mut self) -> Result<(), ERR> {
@@ -695,6 +699,9 @@ where
         // |---------- CLK/OSC ENABLE   (0x80)
         self.write_cmd_string(Command::DisplayUpdateControl2, &[0xc7])?;
         self.write_cmd(Command::MasterActivation)?;
+
+        while self.busy.is_high() {}
+
         self.write_cmd(Command::Nop)
     }
 
@@ -711,6 +718,9 @@ where
         // |---------- CLK/OSC ENABLE   (0x80)
         self.write_cmd_string(Command::DisplayUpdateControl2, &[0x04])?;
         self.write_cmd(Command::MasterActivation)?;
+
+        while self.busy.is_high() {}
+
         self.write_cmd(Command::Nop)
     }
 
